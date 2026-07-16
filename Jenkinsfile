@@ -5,7 +5,8 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
         DOCKER_IMAGE = 'karthi045/cie4-java-app'
         DOCKER_TAG = "${env.BUILD_NUMBER}"
-        KUBECONFIG_PATH = ''
+        JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
+        PATH = "${env.HOME}/bin:${env.JAVA_HOME}/bin:${env.PATH}"
     }
 
     options {
@@ -73,27 +74,12 @@ pipeline {
             steps {
                 echo 'Deploying to Minikube...'
                 sh '''
-                    # Ensure minikube is running
                     if ! minikube status | grep -q "Running"; then
                         minikube start --driver=docker
                     fi
-
-                    # Configure Docker to use Minikube's Docker daemon
-                    eval $(minikube docker-env)
-
-                    # Build image inside minikube's docker
-                    docker build -t ''' + DOCKER_IMAGE + ''':latest .
-
-                    # Apply Kubernetes manifests
                     kubectl apply -f k8s/deployment.yaml
                     kubectl apply -f k8s/service.yaml
-
-                    # Wait for deployment to be ready
                     kubectl rollout status deployment/cie4-java-app --timeout=120s
-
-                    # Print deployment status
-                    kubectl get pods -l app=cie4-java-app
-                    kubectl get svc cie4-java-app-service
                 '''
             }
         }
@@ -102,11 +88,8 @@ pipeline {
             steps {
                 echo 'Verifying deployment...'
                 sh '''
-                    # Get Minikube URL
                     MINIKUBE_IP=$(minikube ip)
                     echo "Application URL: http://$MINIKUBE_IP:30080/api/health"
-
-                    # Test the endpoints
                     for i in 1 2 3 4 5; do
                         if curl -s "http://$MINIKUBE_IP:30080/api/health"; then
                             echo "Application is healthy!"
