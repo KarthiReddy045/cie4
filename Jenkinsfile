@@ -74,13 +74,15 @@ pipeline {
             steps {
                 echo 'Deploying to Minikube...'
                 sh '''
-                    curl -LO https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
-                    chmod +x kubectl
-                    
+                    if [ ! -x kubectl ]; then
+                        curl -LO https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
+                        chmod +x kubectl
+                    fi
+                    export KUBECONFIG=/tmp/kube-config/config
+                    ./kubectl get nodes
                     ./kubectl apply -f k8s/deployment.yaml
                     ./kubectl apply -f k8s/service.yaml
                     ./kubectl rollout status deployment/cie4-java-app --timeout=120s
-                    
                     ./kubectl get pods -l app=cie4-java-app
                     ./kubectl get svc cie4-java-app-service
                 '''
@@ -91,7 +93,8 @@ pipeline {
             steps {
                 echo 'Verifying deployment...'
                 sh '''
-                    MINIKUBE_IP=$(./kubectl get svc cie4-java-app-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "192.168.49.2")
+                    export KUBECONFIG=/tmp/kube-config/config
+                    MINIKUBE_IP=$(./kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
                     echo "Application URL: http://$MINIKUBE_IP:30080/api/health"
                     for i in 1 2 3 4 5; do
                         if curl -s "http://$MINIKUBE_IP:30080/api/health"; then
