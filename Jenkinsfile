@@ -6,7 +6,7 @@ pipeline {
         DOCKER_IMAGE = 'karthi045/cie4-java-app'
         DOCKER_TAG = "${env.BUILD_NUMBER}"
         JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
-        PATH = "${env.HOME}/bin:${env.JAVA_HOME}/bin:${env.PATH}"
+        PATH = "/tmp/minikube-bin:${env.JAVA_HOME}/bin:${env.PATH}"
     }
 
     options {
