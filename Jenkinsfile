@@ -6,6 +6,7 @@ pipeline {
         DOCKER_IMAGE = 'karthi045/cie4-java-app'
         DOCKER_TAG = "${env.BUILD_NUMBER}"
         JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
+        KUBECONFIG = '/tmp/kube-config/config'
     }
 
     options {
@@ -71,21 +72,17 @@ pipeline {
 
         stage('Deploy to Minikube') {
             steps {
-                echo 'Installing tools and deploying to Minikube...'
+                echo 'Deploying to Minikube...'
                 sh '''
                     curl -LO https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
                     chmod +x kubectl
-                    curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-                    chmod +x minikube-linux-amd64
-                    mv minikube-linux-amd64 minikube
-                    
-                    if ! ./minikube status | grep -q "Running"; then
-                        ./minikube start --driver=docker
-                    fi
                     
                     ./kubectl apply -f k8s/deployment.yaml
                     ./kubectl apply -f k8s/service.yaml
                     ./kubectl rollout status deployment/cie4-java-app --timeout=120s
+                    
+                    ./kubectl get pods -l app=cie4-java-app
+                    ./kubectl get svc cie4-java-app-service
                 '''
             }
         }
@@ -94,7 +91,7 @@ pipeline {
             steps {
                 echo 'Verifying deployment...'
                 sh '''
-                    MINIKUBE_IP=$(./minikube ip)
+                    MINIKUBE_IP=$(./kubectl get svc cie4-java-app-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "192.168.49.2")
                     echo "Application URL: http://$MINIKUBE_IP:30080/api/health"
                     for i in 1 2 3 4 5; do
                         if curl -s "http://$MINIKUBE_IP:30080/api/health"; then
