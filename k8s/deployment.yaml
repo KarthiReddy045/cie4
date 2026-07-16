@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cie4-java-app
+  labels:
+    app: cie4-java-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cie4-java-app
+  template:
+    metadata:
+      labels:
+        app: cie4-java-app
+    spec:
+      containers:
+        - name: cie4-java-app
+          image: karthi045/cie4-java-app:latest
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
